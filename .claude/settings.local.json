@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/MC25-PC/Documents/Projects/trail/$HOME/.claude/plugins/cache/claude-dashboard/claude-dashboard/1.15.0/**)",
+      "Read(//c/Users/MC25-PC/Documents/Projects/trail/$HOME/.claude/plugins/cache/claude-dashboard/claude-dashboard/**)"
+    ]
+  }
+}

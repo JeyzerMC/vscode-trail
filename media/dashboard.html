@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}}; script-src {{cspSource}};">
+  <title>Trail Dashboard</title>
+  <link rel="stylesheet" href="{{cssUri}}">
+</head>
+<body>
+  <div class="header">
+    <h1>Trail Dashboard</h1>
+    <button class="refresh-btn" id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="section" id="modelSection">
+    <div class="section-title">Model</div>
+    <div class="model-display" id="modelName">--</div>
+    <div class="model-id" id="modelId"></div>
+  </div>
+
+  <div class="section" id="rateLimitsSection">
+    <div class="section-title">Rate Limits</div>
+
+    <div class="meter-row">
+      <div class="meter-label">
+        <span>5-Hour Limit</span>
+        <span class="meter-value" id="fiveHourValue">--</span>
+      </div>
+      <div class="meter-bar">
+        <div class="meter-fill" id="fiveHourBar" style="width: 0%"></div>
+      </div>
+      <div class="meter-detail" id="fiveHourDetail"></div>
+    </div>
+
+    <div class="meter-row">
+      <div class="meter-label">
+        <span>7-Day Limit</span>
+        <span class="meter-value" id="sevenDayValue">--</span>
+      </div>
+      <div class="meter-bar">
+        <div class="meter-fill" id="sevenDayBar" style="width: 0%"></div>
+      </div>
+      <div class="meter-detail" id="sevenDayDetail"></div>
+    </div>
+
+    <div class="meter-row" id="sevenDaySonnetRow" style="display: none;">
+      <div class="meter-label">
+        <span>7-Day Sonnet</span>
+        <span class="meter-value" id="sevenDaySonnetValue">--</span>
+      </div>
+      <div class="meter-bar">
+        <div class="meter-fill" id="sevenDaySonnetBar" style="width: 0%"></div>
+      </div>
+      <div class="meter-detail" id="sevenDaySonnetDetail"></div>
+    </div>
+  </div>
+
+  <div class="section" id="contextSection">
+    <div class="section-title">Context Window</div>
+    <div class="meter-row">
+      <div class="meter-label">
+        <span>Tokens Used</span>
+        <span class="meter-value" id="contextValue">--</span>
+      </div>
+      <div class="meter-bar">
+        <div class="meter-fill" id="contextBar" style="width: 0%"></div>
+      </div>
+    </div>
+    <div class="token-breakdown" id="tokenBreakdown"></div>
+  </div>
+
+  <div class="section" id="infoSection">
+    <div class="section-title">Session Info</div>
+    <div class="info-grid">
+      <span class="info-label">Cost</span>
+      <span class="info-value" id="costValue">--</span>
+      <span class="info-label">Plan</span>
+      <span class="info-value" id="planValue">--</span>
+      <span class="info-label">Extra Usage</span>
+      <span class="info-value" id="extraUsageValue">--</span>
+    </div>
+  </div>
+
+  <script src="{{jsUri}}"></script>
+</body>
+</html>

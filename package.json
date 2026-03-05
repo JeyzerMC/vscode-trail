@@ -1,0 +1,101 @@
+{
+  "name": "trail",
+  "displayName": "Trail",
+  "description": "Monitor LLM agent usage in the VSCode status bar",
+  "version": "0.1.0",
+  "publisher": "trail",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "trail.openDashboard",
+        "title": "Trail: Open Dashboard"
+      },
+      {
+        "command": "trail.refresh",
+        "title": "Trail: Refresh Metrics"
+      }
+    ],
+    "configuration": {
+      "title": "Trail",
+      "properties": {
+        "trail.refreshInterval": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Refresh interval in seconds"
+        },
+        "trail.activeProvider": {
+          "type": "string",
+          "default": "claude-code",
+          "enum": [
+            "claude-code"
+          ],
+          "description": "Active LLM agent provider"
+        },
+        "trail.statusBar.metrics": {
+          "type": "array",
+          "default": [
+            "model",
+            "rateLimit5h",
+            "rateLimit7d",
+            "context"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "model",
+              "context",
+              "rateLimit5h",
+              "rateLimit7d",
+              "rateLimit7dSonnet",
+              "cost",
+              "subscription"
+            ]
+          },
+          "description": "Metrics to display in the status bar"
+        },
+        "trail.statusBar.position": {
+          "type": "string",
+          "default": "right",
+          "enum": [
+            "left",
+            "right"
+          ],
+          "description": "Status bar position"
+        },
+        "trail.statusBar.priority": {
+          "type": "number",
+          "default": 100,
+          "description": "Status bar priority (higher = more left)"
+        },
+        "trail.claudeDataPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override path to .claude directory (empty = auto-detect from home)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "lint": "tsc --noEmit && tsc --noEmit -p tsconfig.webview.json"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
