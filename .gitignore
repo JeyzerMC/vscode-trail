@@ -2,3 +2,4 @@ node_modules/
 dist/
 media/dashboard.js
 *.vsix
+.claude/settings.local.json
