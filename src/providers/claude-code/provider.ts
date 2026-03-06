@@ -8,6 +8,7 @@ import { fetchUsageLimits } from "./readers/api-client";
 import {
   readLatestBackupMetrics,
   readLatestSessionModel,
+  readLatestSessionTokens,
 } from "./readers/session";
 
 function modelDisplayName(modelId: string): string {
@@ -30,10 +31,11 @@ export class ClaudeCodeProvider implements AgentProvider {
   readonly displayName = "Claude Code";
 
   private claudeDir: string;
+  private workspacePath: string;
 
-  constructor(claudeDataPath?: string) {
-    this.claudeDir =
-      claudeDataPath || path.join(os.homedir(), ".claude");
+  constructor(claudeDataPath?: string, workspacePath?: string) {
+    this.claudeDir = claudeDataPath || path.join(os.homedir(), ".claude");
+    this.workspacePath = workspacePath || process.cwd();
   }
 
   async initialize(): Promise<void> {
@@ -123,30 +125,30 @@ export class ClaudeCodeProvider implements AgentProvider {
       metrics.model = unavailable();
     }
 
-    // Token usage + cost from backup
-    const backup = readLatestBackupMetrics(this.claudeDir);
-    if (backup) {
-      const totalUsed =
-        (backup.totalInputTokens ?? 0) + (backup.totalOutputTokens ?? 0);
-      // Default max context window based on model
-      const maxTokens = modelId?.includes("opus") ? 200_000 : 200_000;
-
+    // Context window from latest session JSONL usage data
+    const sessionTokens = readLatestSessionTokens(this.claudeDir);
+    if (sessionTokens) {
+      const maxTokens = 200_000;
+      const usedTokens = sessionTokens.inputTokens + sessionTokens.outputTokens +
+        sessionTokens.cacheCreationTokens + sessionTokens.cacheReadTokens;
       metrics.contextWindow = fresh({
-        usedTokens: totalUsed,
+        usedTokens,
         maxTokens,
         breakdown: {
-          inputTokens: backup.totalInputTokens ?? 0,
-          outputTokens: backup.totalOutputTokens ?? 0,
-          cacheCreationTokens: backup.cacheCreationTokens ?? 0,
-          cacheReadTokens: backup.cacheReadTokens ?? 0,
+          inputTokens: sessionTokens.inputTokens,
+          outputTokens: sessionTokens.outputTokens,
+          cacheCreationTokens: sessionTokens.cacheCreationTokens,
+          cacheReadTokens: sessionTokens.cacheReadTokens,
         },
       });
-
-      if (backup.costUsd != null) {
-        metrics.cost = fresh({ totalCostUsd: backup.costUsd });
-      }
     } else {
       metrics.contextWindow = unavailable();
+    }
+
+    // Cost from backup file
+    const backup = readLatestBackupMetrics(this.claudeDir, this.workspacePath);
+    if (backup?.costUsd != null) {
+      metrics.cost = fresh({ totalCostUsd: backup.costUsd });
     }
 
     // Subscription info from credentials

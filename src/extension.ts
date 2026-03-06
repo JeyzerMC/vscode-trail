@@ -12,7 +12,8 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize provider registry
   const registry = new ProviderRegistry();
   const claudeDataPath = config.get<string>("claudeDataPath") || undefined;
-  registry.register(new ClaudeCodeProvider(claudeDataPath));
+  const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  registry.register(new ClaudeCodeProvider(claudeDataPath, workspacePath));
 
   // Get active provider
   const providerId = config.get<string>("activeProvider", "claude-code");
@@ -66,6 +67,21 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("trail.refresh", () => {
       store.refresh();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("trail.debugInfo", () => {
+      const m = store.getMetrics();
+      const lines = [
+        `Workspace: ${workspacePath ?? "(none)"}`,
+        `Model: ${m.model?.value?.id ?? m.model?.status ?? "unavailable"}`,
+        `Rate limits: ${m.rateLimits?.status ?? "unavailable"}`,
+        `Context: ${m.contextWindow?.status ?? "unavailable"}`,
+        `Cost: ${m.cost?.status ?? "unavailable"}`,
+        `Subscription: ${m.subscription?.value?.plan ?? m.subscription?.status ?? "unavailable"}`,
+      ];
+      vscode.window.showInformationMessage(lines.join(" | "));
     })
   );
 
