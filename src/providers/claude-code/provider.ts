@@ -31,11 +31,9 @@ export class ClaudeCodeProvider implements AgentProvider {
   readonly displayName = "Claude Code";
 
   private claudeDir: string;
-  private workspacePath: string;
 
-  constructor(claudeDataPath?: string, workspacePath?: string) {
+  constructor(claudeDataPath?: string) {
     this.claudeDir = claudeDataPath || path.join(os.homedir(), ".claude");
-    this.workspacePath = workspacePath || process.cwd();
   }
 
   async initialize(): Promise<void> {
@@ -146,7 +144,7 @@ export class ClaudeCodeProvider implements AgentProvider {
     }
 
     // Cost from backup file
-    const backup = readLatestBackupMetrics(this.claudeDir, this.workspacePath);
+    const backup = readLatestBackupMetrics(this.claudeDir);
     if (backup?.costUsd != null) {
       metrics.cost = fresh({ totalCostUsd: backup.costUsd });
     }

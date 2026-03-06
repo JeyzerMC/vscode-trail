@@ -12,8 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize provider registry
   const registry = new ProviderRegistry();
   const claudeDataPath = config.get<string>("claudeDataPath") || undefined;
-  const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  registry.register(new ClaudeCodeProvider(claudeDataPath, workspacePath));
+  registry.register(new ClaudeCodeProvider(claudeDataPath));
 
   // Get active provider
   const providerId = config.get<string>("activeProvider", "claude-code");
@@ -74,7 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("trail.debugInfo", () => {
       const m = store.getMetrics();
       const lines = [
-        `Workspace: ${workspacePath ?? "(none)"}`,
+        `ClaudeDir: ${claudeDataPath ?? "(default)"}`,
         `Model: ${m.model?.value?.id ?? m.model?.status ?? "unavailable"}`,
         `Rate limits: ${m.rateLimits?.status ?? "unavailable"}`,
         `Context: ${m.contextWindow?.status ?? "unavailable"}`,

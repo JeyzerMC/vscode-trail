@@ -57,7 +57,3 @@ async function doFetch(token: string): Promise<UsageLimitsResponse | null> {
   }
 }
 
-export function clearUsageLimitsCache(): void {
-  cachedResponse = null;
-  cacheTimestamp = 0;
-}

@@ -45,7 +45,20 @@ function findGlobalLatestJsonl(claudeDir: string): string | null {
   }
 }
 
-export function readLatestBackupMetrics(claudeDir: string, workspacePath: string): SessionInfo | null {
+// Read the cwd from the first line of the most recently active session JSONL.
+function readLatestSessionCwd(claudeDir: string): string | null {
+  const filePath = findGlobalLatestJsonl(claudeDir);
+  if (!filePath) return null;
+  try {
+    const firstLine = fs.readFileSync(filePath, "utf-8").split("\n")[0];
+    const entry = JSON.parse(firstLine);
+    return (entry.cwd as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function readLatestBackupMetrics(claudeDir: string): SessionInfo | null {
   const backupsDir = path.join(claudeDir, "backups");
   try {
     const files = fs
@@ -63,10 +76,14 @@ export function readLatestBackupMetrics(claudeDir: string, workspacePath: string
     const projects = data.projects;
     if (!projects || typeof projects !== "object") return null;
 
-    // Backup keys use forward-slash paths (e.g., C:/Users/foo/bar)
-    const normalizedWorkspace = workspacePath.replace(/\\/g, "/");
+    // Resolve the active session's project directory from its cwd field.
+    // Backup keys use forward-slash paths (e.g., C:/Users/foo/bar).
+    const sessionCwd = readLatestSessionCwd(claudeDir);
+    if (!sessionCwd) return null;
+    const normalizedCwd = sessionCwd.replace(/\\/g, "/");
+
     for (const [projectPath, projectData] of Object.entries(projects)) {
-      if (projectPath.toLowerCase() === normalizedWorkspace.toLowerCase()) {
+      if (projectPath.toLowerCase() === normalizedCwd.toLowerCase()) {
         const pd = projectData as Record<string, unknown>;
         return { costUsd: pd.lastCost as number | undefined };
       }
