@@ -3,6 +3,61 @@ import * as path from "path";
 
 interface SessionInfo {
   costUsd?: number;
+  billingType?: string;
+  hasExtraUsageEnabled?: boolean;
+}
+
+// Pricing per million tokens (MTok) for each model family.
+// Source: https://www.anthropic.com/pricing
+const MODEL_PRICING: Record<
+  string,
+  { input: number; output: number; cacheWrite: number; cacheRead: number }
+> = {
+  opus: { input: 15, output: 75, cacheWrite: 18.75, cacheRead: 1.5 },
+  sonnet: { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 },
+  haiku: { input: 0.8, output: 4, cacheWrite: 1.0, cacheRead: 0.08 },
+};
+
+function getPricing(modelId: string) {
+  if (modelId.includes("opus")) return MODEL_PRICING.opus;
+  if (modelId.includes("haiku")) return MODEL_PRICING.haiku;
+  return MODEL_PRICING.sonnet; // default / sonnet
+}
+
+export function computeSessionCost(claudeDir: string): number | null {
+  const filePath = findGlobalLatestJsonl(claudeDir);
+  if (!filePath) return null;
+
+  try {
+    const lines = fs.readFileSync(filePath, "utf-8").split("\n");
+    let totalCost = 0;
+    let found = false;
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const entry = JSON.parse(line);
+        const usage = entry.message?.usage ?? entry.usage;
+        const modelId: string = entry.message?.model ?? entry.model ?? "";
+        if (!usage || usage.input_tokens === undefined || !modelId) continue;
+
+        const p = getPricing(modelId);
+        totalCost +=
+          ((usage.input_tokens ?? 0) * p.input +
+            (usage.output_tokens ?? 0) * p.output +
+            (usage.cache_creation_input_tokens ?? 0) * p.cacheWrite +
+            (usage.cache_read_input_tokens ?? 0) * p.cacheRead) /
+          1_000_000;
+        found = true;
+      } catch {
+        continue;
+      }
+    }
+
+    return found ? totalCost : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface SessionTokens {
@@ -45,14 +100,23 @@ function findGlobalLatestJsonl(claudeDir: string): string | null {
   }
 }
 
-// Read the cwd from the first line of the most recently active session JSONL.
+// Read the cwd from the most recently active session JSONL.
+// The first lines may not have cwd, so scan until we find one.
 function readLatestSessionCwd(claudeDir: string): string | null {
   const filePath = findGlobalLatestJsonl(claudeDir);
   if (!filePath) return null;
   try {
-    const firstLine = fs.readFileSync(filePath, "utf-8").split("\n")[0];
-    const entry = JSON.parse(firstLine);
-    return (entry.cwd as string) ?? null;
+    const lines = fs.readFileSync(filePath, "utf-8").split("\n");
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const entry = JSON.parse(line);
+        if (entry.cwd) return entry.cwd as string;
+      } catch {
+        continue;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -76,20 +140,27 @@ export function readLatestBackupMetrics(claudeDir: string): SessionInfo | null {
     const projects = data.projects;
     if (!projects || typeof projects !== "object") return null;
 
+    // Read subscription info from oauthAccount (always available).
+    const oauthAccount = data.oauthAccount as Record<string, unknown> | undefined;
+    const billingType = oauthAccount?.billingType as string | undefined;
+    const hasExtraUsageEnabled = oauthAccount?.hasExtraUsageEnabled as boolean | undefined;
+
     // Resolve the active session's project directory from its cwd field.
     // Backup keys use forward-slash paths (e.g., C:/Users/foo/bar).
+    let costUsd: number | undefined;
     const sessionCwd = readLatestSessionCwd(claudeDir);
-    if (!sessionCwd) return null;
-    const normalizedCwd = sessionCwd.replace(/\\/g, "/");
-
-    for (const [projectPath, projectData] of Object.entries(projects)) {
-      if (projectPath.toLowerCase() === normalizedCwd.toLowerCase()) {
-        const pd = projectData as Record<string, unknown>;
-        return { costUsd: pd.lastCost as number | undefined };
+    if (sessionCwd) {
+      const normalizedCwd = sessionCwd.replace(/\\/g, "/");
+      for (const [projectPath, projectData] of Object.entries(projects)) {
+        if (projectPath.toLowerCase() === normalizedCwd.toLowerCase()) {
+          const pd = projectData as Record<string, unknown>;
+          costUsd = pd.lastCost as number | undefined;
+          break;
+        }
       }
     }
 
-    return null;
+    return { costUsd, billingType, hasExtraUsageEnabled };
   } catch {
     return null;
   }

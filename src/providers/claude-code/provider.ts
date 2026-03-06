@@ -3,12 +3,13 @@ import * as path from "path";
 import * as os from "os";
 import { AgentMetrics, AgentProvider, MetricValue } from "../../types";
 import { readUsageCache } from "./readers/usage-cache";
-import { readOAuthToken, readCredentials } from "./readers/credentials";
+import { readOAuthToken } from "./readers/credentials";
 import { fetchUsageLimits } from "./readers/api-client";
 import {
   readLatestBackupMetrics,
   readLatestSessionModel,
   readLatestSessionTokens,
+  computeSessionCost,
 } from "./readers/session";
 
 function modelDisplayName(modelId: string): string {
@@ -16,6 +17,13 @@ function modelDisplayName(modelId: string): string {
   if (modelId.includes("sonnet")) return "Sonnet";
   if (modelId.includes("haiku")) return "Haiku";
   return modelId;
+}
+
+function planDisplayName(billingType: string): string {
+  if (billingType === "stripe_subscription") return "Pro";
+  if (billingType === "free") return "Free";
+  if (billingType === "enterprise") return "Max";
+  return billingType;
 }
 
 function fresh<T>(value: T): MetricValue<T> {
@@ -127,8 +135,12 @@ export class ClaudeCodeProvider implements AgentProvider {
     const sessionTokens = readLatestSessionTokens(this.claudeDir);
     if (sessionTokens) {
       const maxTokens = 200_000;
-      const usedTokens = sessionTokens.inputTokens + sessionTokens.outputTokens +
-        sessionTokens.cacheCreationTokens + sessionTokens.cacheReadTokens;
+      // Context window = tokens the model is reading (input + cache).
+      // output_tokens are what the model generated, not context being consumed.
+      const usedTokens =
+        sessionTokens.inputTokens +
+        sessionTokens.cacheCreationTokens +
+        sessionTokens.cacheReadTokens;
       metrics.contextWindow = fresh({
         usedTokens,
         maxTokens,
@@ -143,18 +155,16 @@ export class ClaudeCodeProvider implements AgentProvider {
       metrics.contextWindow = unavailable();
     }
 
-    // Cost from backup file
+    // Cost: compute from JSONL token usage, fall back to backup's lastCost
     const backup = readLatestBackupMetrics(this.claudeDir);
-    if (backup?.costUsd != null) {
-      metrics.cost = fresh({ totalCostUsd: backup.costUsd });
-    }
+    const sessionCost = computeSessionCost(this.claudeDir);
+    const costUsd = sessionCost ?? backup?.costUsd ?? null;
+    metrics.cost = costUsd != null ? fresh({ totalCostUsd: costUsd }) : unavailable();
 
-    // Subscription info from credentials
-    const creds = readCredentials(this.claudeDir);
-    if (creds?.subscriptionType) {
+    if (backup?.billingType) {
       metrics.subscription = fresh({
-        plan: creds.subscriptionType,
-        extraUsageEnabled: true, // Default; could be read from backup data
+        plan: planDisplayName(backup.billingType),
+        extraUsageEnabled: backup.hasExtraUsageEnabled ?? false,
       });
     } else {
       metrics.subscription = unavailable();
