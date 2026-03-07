@@ -4,6 +4,12 @@
   "description": "Monitor LLM agent usage in the VSCode status bar",
   "version": "0.1.0",
   "publisher": "trail",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/trail"
+  },
+  "license": "MIT",
+  "icon": "media/placeholder_icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
